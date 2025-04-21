@@ -1,0 +1,6 @@
+:concurrency: 5
+:schedule:
+  shopify_fetch_products:
+    cron: "* * * * *"
+    class: "ShopifyFetchProductsJob"
+    class: "UpdateProductPricesJob"
