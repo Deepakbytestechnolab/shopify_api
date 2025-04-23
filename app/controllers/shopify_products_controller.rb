@@ -16,7 +16,13 @@ class ShopifyProductsController < ApplicationController
   end
 
   def update_prices
-    ShopifyGraphqlClient.update_prices_based_on_sales
-    render json: { message: "Product prices updated based on sales!" }, status: :ok
+    type = params[:type]
+
+    if %w[sales_based inventory_based both].include?(type)
+      ShopifyGraphqlClient.update_prices(type)
+      render json: { message: "Product prices updated using type: #{type}" }, status: :ok
+    else
+      render json: { error: "Invalid type. Allowed values: sales_based, inventory_based, both" }, status: :unprocessable_entity
+    end
   end
 end

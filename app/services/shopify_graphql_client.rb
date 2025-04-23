@@ -106,25 +106,80 @@ class ShopifyGraphqlClient
       end
     end
 
-    def update_prices_based_on_sales
-      products = Product.includes(:variants)
+    def update_prices(type)
+      case type
+      when "sales_based"
+        update_price_by_sales
+      when "inventory_based"
+        update_price_by_inventory
+      when "both"
+        update_price_by_sales_and_inventory
+      else
+        Rails.logger.error("Invalid price update type: #{type}")
+      end
+    end
 
-      products.each do |product|
+    def update_price_by_sales
+      Product.includes(:variants).find_each do |product|
         product.variants.each do |variant|
-          sales_last_7_days = calculate_variant_sales_last_7_days(variant.shopify_id)
+          sales = calculate_variant_sales_last_7_days(variant.shopify_id)
+          Rails.logger.info "Variant #{variant.sku} sold #{sales} units in last 7 days"
 
-          Rails.logger.info "Variant #{variant.sku} sold #{sales_last_7_days} units in last 7 days"
-          if sales_last_7_days >= 3
+          if sales >= 50
             new_price = (variant.price * 1.15).round(2)
-            Rails.logger.info "Updating price for SKU #{variant.sku}: #{variant.price} → #{new_price}"
-
-            update_shopify_variant_price(variant.shopify_id, new_price)
-            variant.update(price: new_price) # optionally update local DB
+            update_variant_price_if_changed(variant, new_price)
           end
         end
       end
-    rescue => e
-      Rails.logger.error("Error updating prices based on sales: #{e.message}")
+    end
+
+    def update_price_by_inventory
+      Product.includes(:variants).find_each do |product|
+        product.variants.each do |variant|
+          price = variant.price
+
+          if variant.inventory_quantity.to_i < 10
+            new_price = (price * 1.10).round(2)
+          elsif variant.inventory_quantity.to_i > 100
+            new_price = (price * 0.95).round(2)
+          else
+            next
+          end
+
+          update_variant_price_if_changed(variant, new_price)
+        end
+      end
+    end
+
+    def update_price_by_sales_and_inventory
+      byebug
+      Product.includes(:variants).find_each do |product|
+        product.variants.each do |variant|
+          price = variant.price
+          sales = calculate_variant_sales_last_7_days(variant.shopify_id)
+          Rails.logger.info "Variant #{variant.sku} sold #{sales} units in last 7 days"
+
+          new_price = price
+          new_price *= 1.15 if sales >= 3
+
+          if variant.inventory_quantity.to_i < 10
+            new_price *= 1.10
+          elsif variant.inventory_quantity.to_i > 100
+            new_price *= 0.95
+          end
+
+          new_price = new_price.round(2)
+          update_variant_price_if_changed(variant, new_price)
+        end
+      end
+    end
+
+    def update_variant_price_if_changed(variant, new_price)
+      return if variant.price == new_price
+
+      Rails.logger.info "Updating price for SKU #{variant.sku}: #{variant.price} → #{new_price}"
+      variant.update(price: new_price)
+      update_shopify_variant_price(variant.shopify_id, new_price)
     end
 
     def update_shopify_variant_price(variant_id, new_price)
