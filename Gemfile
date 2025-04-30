@@ -8,7 +8,7 @@ gem "importmap-rails"
 gem "turbo-rails"
 gem "stimulus-rails"
 gem "jbuilder"
-gem "shopify_api", "~> 12.0"
+gem "shopify_api", "~> 14.10"
 gem "byebug"
 gem 'sidekiq-scheduler', github: 'sidekiq-scheduler/sidekiq-scheduler'
 gem 'sidekiq', '~> 7.2'
