@@ -71,6 +71,64 @@ var statsCmd = &cobra.Command{
 		for _, c := range list {
 			fmt.Printf("%s: %d commits\n", c.Name, c.Commits)
 		}
+		// ---------- Most Modified Files ----------
+		fileChanges := make(map[string]int)
+
+		iter, err = repo.Log(&git.LogOptions{From: ref.Hash()})
+		if err != nil {
+			fmt.Println("❌ Failed to read commits:", err)
+			return
+		}
+
+		err = iter.ForEach(func(c *object.Commit) error {
+			if c.NumParents() == 0 {
+				// Skip initial commit with no parent
+				return nil
+			}
+
+			parent, err := c.Parent(0)
+			if err != nil {
+				return err
+			}
+
+			patch, err := parent.Patch(c)
+			if err != nil {
+				return err
+			}
+
+			for _, stat := range patch.Stats() {
+				fileChanges[stat.Name]++
+			}
+			return nil
+		})
+		if err != nil {
+			fmt.Println("❌ Error while collecting file stats:", err)
+			return
+		}
+
+		// Sort files by most changes
+		type fileStat struct {
+			Name  string
+			Count int
+		}
+		var files []fileStat
+		for k, v := range fileChanges {
+			files = append(files, fileStat{Name: k, Count: v})
+		}
+		sort.Slice(files, func(i, j int) bool {
+			return files[i].Count > files[j].Count
+		})
+
+		// Print top 10 modified files
+		fmt.Println("\n📁 Most Modified Files")
+		fmt.Println("----------------------------")
+		for i, f := range files {
+			if i >= 10 {
+				break
+			}
+			fmt.Printf("%s: %d changes\n", f.Name, f.Count)
+		}
+
 	},
 }
 
