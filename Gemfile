@@ -11,7 +11,7 @@ gem "jbuilder"
 gem "shopify_api", "~> 12.0"
 gem "byebug"
 gem 'sidekiq-scheduler', github: 'sidekiq-scheduler/sidekiq-scheduler'
-gem 'sidekiq', '~> 7.2'
+gem 'sidekiq', '~> 8.0'
 
 
 gem "tzinfo-data", platforms: %i[ windows jruby ]
